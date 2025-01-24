@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:agendiet/domain/entities/meta_peso.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class AddMetaView extends StatefulWidget {
-  const AddMetaView({super.key});
+  final int userId; // ID do usuário passado como parâmetro
+
+  const AddMetaView({super.key, required this.userId});
 
   @override
   _AddMetaViewState createState() => _AddMetaViewState();
@@ -10,12 +13,13 @@ class AddMetaView extends StatefulWidget {
 
 class _AddMetaViewState extends State<AddMetaView> {
   final _formKey = GlobalKey<FormState>();
+  final TextEditingController _pesoPretendidoController =
+      TextEditingController();
 
-  final TextEditingController _pesoPretendidoController = TextEditingController();
   DateTime? _dataInicio;
   DateTime? _dataLimite;
 
-  void _saveMeta() {
+  Future<void> _saveMeta() async {
     if (_formKey.currentState!.validate()) {
       if (_dataInicio == null || _dataLimite == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -24,18 +28,40 @@ class _AddMetaViewState extends State<AddMetaView> {
         return;
       }
 
-      final newMeta = MetaPeso(
-        id: DateTime.now().toString(),
-        idUsuario: 'usuario123',
-        pesoPretendido: double.parse(_pesoPretendidoController.text),
-        dataInicio: _dataInicio!,
-        dataLimite: _dataLimite!,
-        foiAtingido: false,
-      );
+      final url = Uri.parse(
+          'http://127.0.0.1:8000/metas-peso/registrar/${widget.userId}');
+      final body = {
+        "peso_pretendido": double.parse(_pesoPretendidoController.text),
+        "data_inicio": _dataInicio!.toIso8601String(),
+        "data_limite": _dataLimite!.toIso8601String(),
+        "foi_atingido": false,
+      };
 
-      print(
-          'Nova meta: ${newMeta.pesoPretendido} kg, Data Limite: ${newMeta.dataLimite}');
-      Navigator.pop(context);
+      try {
+        final response = await http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: json.encode(body),
+        );
+
+        if (response.statusCode == 200) {
+          final responseBody = json.decode(response.body);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(responseBody['message'] ?? 'Sucesso!')),
+          );
+          Navigator.pop(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Erro ao registrar meta de peso')),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e')),
+        );
+      }
     }
   }
 
@@ -49,13 +75,13 @@ class _AddMetaViewState extends State<AddMetaView> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: Colors.green, 
-              onPrimary: Colors.white, 
-              onSurface: Colors.black, 
+              primary: Colors.green, // Cor do cabeçalho
+              onPrimary: Colors.white, // Cor do texto
+              onSurface: Colors.black, // Cor do texto no conteúdo
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: Colors.green, 
+                foregroundColor: Colors.green, // Cor dos botões de texto
               ),
             ),
           ),

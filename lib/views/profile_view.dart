@@ -70,7 +70,7 @@ class UserProfileView extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => EstabelecerMetaView(),
+                        builder: (context) => EstabelecerMetaView(userId: userId),
                       ),
                     );
                   },

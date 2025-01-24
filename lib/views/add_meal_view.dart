@@ -20,21 +20,46 @@ class _AddMealScreenState extends State<AddMealScreen> {
 
   String? _periodoDoDia;
 
+  @override
+  void initState() {
+    super.initState();
+    _nomeController = TextEditingController();
+    _tagController = TextEditingController();
+    _descricaoController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    _tagController.dispose();
+    _descricaoController.dispose();
+    super.dispose();
+  }
 
   Future<void> _saveMeal() async {
     if (_formKey.currentState!.validate()) {
-    final url = Uri.parse('http://127.0.0.1:8000/planos-alimentares/registrar/${widget.userId}'); 
+      final url = Uri.parse(
+          'http://127.0.0.1:8000/planos-alimentares/registrar/${widget.userId}');
+
+      // Mapear o período para os valores esperados pela API
+      String periodoApi = '';
+      if (_periodoDoDia == 'Manhã') {
+        periodoApi = 'M';
+      } else if (_periodoDoDia == 'Tarde') {
+        periodoApi = 'T';
+      } else if (_periodoDoDia == 'Noite') {
+        periodoApi = 'N';
+      }
 
       final response = await http.post(
         url,
         body: json.encode({
           'nome': _nomeController.text,
-          'id_usuario': 1, // Exemplo de usuário
-          'id_nutricionista': null, // Você pode preencher com o ID do nutricionista se necessário
+          'id_usuario': widget.userId, // Pegar o userId diretamente
+          'id_nutricionista': 1, // Preencha com o ID do nutricionista, se necessário
           'tag': _tagController.text,
-          'horario_refeicao': '07:00', // Adapte conforme necessário
           'descricao': _descricaoController.text,
-          'periodoDoDia': _periodoDoDia!,
+          'periodoDoDia': periodoApi,
         }),
         headers: {
           'Content-Type': 'application/json',
@@ -66,7 +91,7 @@ class _AddMealScreenState extends State<AddMealScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
-            Navigator.pop(context);
+            Navigator.pop(context, true);
           },
         ),
       ),

@@ -1,30 +1,54 @@
-import 'package:agendiet/views/add_meal_view.dart';
-import 'package:agendiet/widgets/meal_card_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // Para converter a resposta JSON
+import 'package:agendiet/views/add_meal_view.dart';
+import 'package:agendiet/widgets/meal_card_widget.dart';
 
-class MealScheduleView extends StatelessWidget {
+class MealScheduleView extends StatefulWidget {
   final int userId;
 
   MealScheduleView({super.key, required this.userId});
 
+  @override
+  _MealScheduleViewState createState() => _MealScheduleViewState();
+}
+
+class _MealScheduleViewState extends State<MealScheduleView> {
+  List<Map<String, dynamic>> mealPlans = [];
+
   // Função para buscar planos alimentares
-  Future<List<Map<String, dynamic>>> fetchMealPlans(int userId) async {
-    final response = await http.get(Uri.parse('http://127.0.0.1:8000/planos-alimentares/get/$userId'));
+  Future<void> fetchMealPlans() async {
+    final response = await http.get(Uri.parse('http://127.0.0.1:8000/planos-alimentares/get/${widget.userId}'));
 
     if (response.statusCode == 200) {
       // Se a resposta for bem-sucedida, parse o JSON
       final List<dynamic> data = jsonDecode(response.body);
-      print('Dados recebidos: ${response.body}');
-      return data.map((item) => item as Map<String, dynamic>).toList();
+      setState(() {
+        mealPlans = data.map((item) => item as Map<String, dynamic>).toList();
+      });
     } else {
       throw Exception('Falha ao carregar planos alimentares');
     }
   }
 
   @override
-  Widget build(BuildContext context) {// Substitua pelo ID do usuário atual
+  void initState() {
+    super.initState();
+    fetchMealPlans();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Separando as refeições por período
+    final refeicoesManha = mealPlans
+        .where((plano) => plano['periodododia']?.toString().toLowerCase().trim() == 'm')
+        .toList();
+    final refeicoesTarde = mealPlans
+        .where((plano) => plano['periodododia']?.toString().toLowerCase().trim() == 't')
+        .toList();
+    final refeicoesNoite = mealPlans
+        .where((plano) => plano['periodododia']?.toString().toLowerCase().trim() == 'n')
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -36,43 +60,9 @@ class MealScheduleView extends StatelessWidget {
           style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: fetchMealPlans(userId),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Erro ao carregar dados: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('Nenhum plano alimentar encontrado.'));
-          } else {
-
-            
-
-final refeicoesManha = snapshot.data!
-    .where((plano) {
-      print('Periodo: ${plano['periodododia']}'); // Verifique o valor exato
-      return plano['periodododia']?.toString().toLowerCase().trim() == 'manhã';
-    })
-    .toList();
-
-final refeicoesTarde = snapshot.data!
-    .where((plano) {
-      print('Periodo: ${plano['periodododia']}'); // Verifique o valor exato
-      return plano['periodododia']?.toString().toLowerCase().trim() == 'tarde';
-    })
-    .toList();
-
-final refeicoesNoite = snapshot.data!
-    .where((plano) {
-      print('Periodo: ${plano['periodododia']}'); // Verifique o valor exato
-      return plano['periodododia']?.toString().toLowerCase().trim() == 'noite';
-    })
-    .toList();
-
-
-
-            return Container(
+      body: mealPlans.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : Container(
               color: Colors.white,
               child: Center(
                 child: Column(
@@ -85,16 +75,19 @@ final refeicoesNoite = snapshot.data!
                   ],
                 ),
               ),
-            );
-          }
-        },
-      ),
+            ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          // Navega para a tela de adicionar refeição
+          final result = await Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => AddMealScreen(userId: userId)),
+            MaterialPageRoute(builder: (context) => AddMealScreen(userId: widget.userId)),
           );
+
+          // Verifica se a refeição foi adicionada com sucesso e atualiza a lista de refeições
+          if (result != null && result == true) {
+            fetchMealPlans(); // Atualiza os planos de refeição
+          }
         },
         backgroundColor: Colors.green.shade400,
         child: const Icon(Icons.add, color: Colors.white),
